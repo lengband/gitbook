@@ -36,3 +36,7 @@ github：https://github.com/commitizen/cz-cli
 ###### cz-conventional-changelog
 一个符合 Angular团队规范的 prese
 github：https://github.com/commitizen/cz-conventional-changelog
+
+#### vagrant
+通过命令的形式快速搭建环境
+cn_blog: https://tangbaoping.github.io/vagrant_doc_zh/v2/
