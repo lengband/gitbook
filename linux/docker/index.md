@@ -118,3 +118,22 @@ ENTERPOINTER: 设置容器启动时运行的命令
 让容器以应用程序或则服务的形式运行
 不会被忽略，一定会执行
 最佳实践：写一个shell脚本最为enterpoint
+
+
+##### 容器之间的link
+在下面的命令中，test2能ping通172.17.3(test1的IP)，同时也能ping通test1(docker内部加了类似DNS的处理)，走的是默认网络bridge，反之test1仅能ping通172.17.2(test2的IP)，不能ping通test2。
+`docker run -d --name test1 busybox /bin/sh -c "while true; do sleep 3600; done"` 
+`docker run -d --name test2 --link test1 busybox /bin/sh -c "while true; do sleep 3600; done"` 
+如果用自己创建的网络，可以实现双向互通。
+> 推荐下载 `apt install bridge-utils`，方便查看系统内的bridge，`brctl show`
+1、创建网络
+`docker network create -d bridge my-bridge` -d 表示采用哪种driver（docker网络默认有三种driver，bridge、host、none）
+现在如果用 `brctl show` 就会发现自己新创建出来的网络（会发现interfaces字段没有值）
+2、创建一个container加入自建网络
+`docker run -d --name test3 --nework my-bridge busybox /bin/sh -c "while true; do sleep 3600; done"`
+现在如果用 `brctl show` 就会发现自己新创建出来的网络（会发现interfaces字段有值了）
+也可以使用`docker network inspect my-bridge`查看链接进来的container
+3、把已有container加入自建网络(这一步也可以是 创建一个container加入自建网络)
+`docker network connect my-bridge test2`
+`docker network inspect my-bridge`查看链接进来的container就会发现两个container
+4、这样test2和test3就是互通的了，其中test2即链接到默认的`bridge`和自建的网络`my-bridge`
