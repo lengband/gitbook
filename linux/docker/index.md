@@ -137,3 +137,59 @@ ENTERPOINTER: 设置容器启动时运行的命令
 `docker network connect my-bridge test2`
 `docker network inspect my-bridge`查看链接进来的container就会发现两个container
 4、这样test2和test3就是互通的了，其中test2即链接到默认的`bridge`和自建的网络`my-bridge`
+
+##### 容器端口映射
+举例，创建一个`nginx`容器，想要把本地80端口映射到容器里面的80端口
+`docker run --name web -d -p 80:80 nginx`
+
+
+##### 多容器复杂应用的部署
+先看一下程序，和 redis 组合使用
+app.py
+```
+from flask import Flask
+from redis import Redis
+import os
+import socket
+
+app = Flask(__name__)
+redis = Redis(host=os.environ.get('REDIS_HOST', '127.0.0.1'), port=6379)
+
+@app.route('/')
+def hello():
+    redis.incr('hits')
+    return 'Hello Container World! I have been seen %s times and my hostname is %s.\n' % (redis.get('hits'),socket.gethostname())
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
+ docker run -d --link redis --name flask-redis -e REDIS_HOST=redis lengband/flask-redis
+```
+Dockerfile
+```
+FROM python:2.7
+LABEL maintaner="lengband@163.com"
+COPY . /app
+WORKDIR /app
+RUN pip install flask redis
+EXPOSE 5000
+CMD ["python", "app.py"]
+```
+1、启动 redis
+`docker run -d --name redis redis`
+2、打包镜像
+`docker build -t lengband/flask-redis .`
+3、启动镜像(指定环境变量`REDIS_HOST`)
+`docker run -d --link redis --name flask-redis -e REDIS_HOST=redis lengband/flask-redis`
+4、验证
+先进入base，`docker exec -it flask-redis /bin/sh`，然后执行`curl 127.0.0.1:5000`,会输出如下
+Hello Container World! I have been seen 1 times and my hostname is 3573f2231c28.
+再次执行 `curl 127.0.0.1:5000`，会输出如下
+Hello Container World! I have been seen 2 times and my hostname is 3573f2231c28.
+此时，说明已经生效
+5、（option）本地验证
+先停止和删除原有container，
+`docker stop lengband/flask-redis`和`docker rm lengband/flask-redis`
+然后执行 `docker run -d -p 5000:5000 --link redis --name flask-redis -e REDIS_HOST=redis lengband/flask-redis`
+之后打开浏览器 127.0.0.1:5000 既可以看见
+Hello Container World! I have been seen 3 times and my hostname is 3573f2231c28.
+如果没有浏览器，也可执行 `curl 127.0.0.1:5000`，进行验证
