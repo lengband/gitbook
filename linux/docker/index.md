@@ -1,6 +1,9 @@
 #### centos 安装docker
 官方：https://docs.docker.com/install/linux/docker-ce/centos/
 
+* 部分库拉取镜像的时候会timeout，可以选择更改仓库源地址到国内 *
+https://blog.csdn.net/weixin_41929524/article/details/96770250
+
 查看docker命令
 `docker` 常用 `docker <Management Command> <Command> <Optional?ID>`
 
@@ -82,15 +85,16 @@ url 获取主机的 URL
 version 输出 docker-machine 版本信息
 help 输出帮助信息
 
-> 注意简写
+###### 注意简写
 `docker rm xxx` 默认是删除container，如果想要删除镜像执行 `docker rmi xxx`
 `docker container commit` = `docker commit`
 `docker image build` = `docker build`
 `docker image push` = `docker push`
 
 
-组合用法
+###### 组合用法
 > `-q`相当于一个语法糖，例如 `docker rm $(docker container ls -aq)` = `docker container ls -a | awk ${'print$1'}`
+
 1、删除全部containers
 `docker rm $(docker container ls -aq)`
 2、删除退出状态的containers
@@ -121,11 +125,14 @@ ENTERPOINTER: 设置容器启动时运行的命令
 
 
 ##### 容器之间的link
+> 容器启动失败可以使用命令 `docker logs <container>`查看原因
+
 在下面的命令中，test2能ping通172.17.3(test1的IP)，同时也能ping通test1(docker内部加了类似DNS的处理)，走的是默认网络bridge，反之test1仅能ping通172.17.2(test2的IP)，不能ping通test2。
 `docker run -d --name test1 busybox /bin/sh -c "while true; do sleep 3600; done"` 
 `docker run -d --name test2 --link test1 busybox /bin/sh -c "while true; do sleep 3600; done"` 
 如果用自己创建的网络，可以实现双向互通。
 > 推荐下载 `apt install bridge-utils`，方便查看系统内的bridge，`brctl show`
+
 1、创建网络
 `docker network create -d bridge my-bridge` -d 表示采用哪种driver（docker网络默认有三种driver，bridge、host、none）
 现在如果用 `brctl show` 就会发现自己新创建出来的网络（会发现interfaces字段没有值）
@@ -165,6 +172,7 @@ if __name__ == "__main__":
  docker run -d --link redis --name flask-redis -e REDIS_HOST=redis lengband/flask-redis
 ```
 Dockerfile
+> EXPOSE 5000 是为了本地启用时端口映射
 ```
 FROM python:2.7
 LABEL maintaner="lengband@163.com"
@@ -193,3 +201,8 @@ Hello Container World! I have been seen 2 times and my hostname is 3573f2231c28.
 之后打开浏览器 127.0.0.1:5000 既可以看见
 Hello Container World! I have been seen 3 times and my hostname is 3573f2231c28.
 如果没有浏览器，也可执行 `curl 127.0.0.1:5000`，进行验证
+
+
+#### 部署一个workpress
+1、` docker run -d --name mysql -v mysql-data:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=wordpress mysql`
+2、` docker run -d -e WORDPRESS_DB_HOST=mysql:3306 --link mysql -p 8080:80 wordpress`
